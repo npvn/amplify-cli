@@ -1,10 +1,18 @@
-import { DirectiveWrapper } from '@aws-amplify/graphql-transformer-core';
-import { AppSyncAuthMode } from '@aws-amplify/graphql-transformer-interfaces';
-import { TransformerContextProvider } from '@aws-amplify/graphql-transformer-interfaces';
+import { DirectiveWrapper, InvalidDirectiveError } from '@aws-amplify/graphql-transformer-core';
+import { AppSyncAuthMode, TransformerContextProvider } from '@aws-amplify/graphql-transformer-interfaces';
 import { Stack } from '@aws-cdk/core';
 import { ObjectTypeDefinitionNode } from 'graphql';
-import { AccessControlMatrix, MODEL_OPERATIONS } from '..';
-import { AuthProvider, AuthRule, AuthTransformerConfig, ConfiguredAuthProviders, RoleDefinition, RolesByProvider } from './definitions';
+import { AccessControlMatrix } from '../accesscontrol/acm';
+import { MODEL_OPERATIONS } from './constants';
+import {
+  AuthProvider,
+  AuthRule,
+  AuthTransformerConfig,
+  ConfiguredAuthProviders,
+  ModelOperation,
+  RoleDefinition,
+  RolesByProvider,
+} from './definitions';
 
 export * from './constants';
 export * from './definitions';
@@ -12,16 +20,79 @@ export * from './validations';
 export * from './schema';
 export * from './iam';
 
-export const splitRoles = (roles: Array<RoleDefinition>): RolesByProvider => {
-  return {
-    cognitoStaticRoles: roles.filter(r => r.static && r.provider === 'userPools'),
-    cognitoDynamicRoles: roles.filter(r => !r.static && r.provider === 'userPools'),
-    oidcStaticRoles: roles.filter(r => r.static && r.provider === 'oidc'),
-    oidcDynamicRoles: roles.filter(r => !r.static && r.provider === 'oidc'),
-    iamRoles: roles.filter(r => r.provider === 'iam'),
-    apiKeyRoles: roles.filter(r => r.provider === 'apiKey'),
-    lambdaRoles: roles.filter(r => r.provider === 'function'),
+/**
+ * split roles by providers
+ */
+export const splitRoles = (roles: Array<RoleDefinition>): RolesByProvider => ({
+  cognitoStaticRoles: roles.filter(r => r.static && r.provider === 'userPools'),
+  cognitoDynamicRoles: roles.filter(r => !r.static && r.provider === 'userPools'),
+  oidcStaticRoles: roles.filter(r => r.static && r.provider === 'oidc'),
+  oidcDynamicRoles: roles.filter(r => !r.static && r.provider === 'oidc'),
+  iamRoles: roles.filter(r => r.provider === 'iam'),
+  apiKeyRoles: roles.filter(r => r.provider === 'apiKey'),
+  lambdaRoles: roles.filter(r => r.provider === 'function'),
+});
+
+/**
+ * returns @auth directive rules
+ */
+export const getAuthDirectiveRules = (authDir: DirectiveWrapper): AuthRule[] => {
+  const splitReadOperation = (rule: AuthRule): void => {
+    const operations: (ModelOperation | 'read')[] = rule.operations ?? [];
+    const indexOfRead = operations.indexOf('read', 0);
+    if (indexOfRead !== -1) {
+      operations.splice(indexOfRead, 1);
+      operations.push('get');
+      operations.push('list');
+      // eslint-disable-next-line no-param-reassign
+      rule.operations = operations as ModelOperation[];
+    }
   };
+
+  const { rules } = authDir.getArguments<{ rules: Array<AuthRule> }>({ rules: [] });
+  rules.forEach(rule => {
+    const operations: (ModelOperation | 'read')[] = rule.operations ?? MODEL_OPERATIONS;
+
+    if (operations.includes('read') && (operations.includes('list') || operations.includes('get'))) {
+      const offendingOperation = operations.includes('list') ? 'list' : 'get';
+      throw new InvalidDirectiveError(
+        `'${offendingOperation}' operation is specified in addition to 'read'. Either remove 'read' to limit access only to '${offendingOperation}' or only keep 'read' to grant both 'get' and 'list' access.`,
+      );
+    }
+
+    if (!rule.provider) {
+      switch (rule.allow) {
+        case 'owner':
+        case 'groups':
+          // eslint-disable-next-line no-param-reassign
+          rule.provider = 'userPools';
+          break;
+        case 'private':
+          // eslint-disable-next-line no-param-reassign
+          rule.provider = 'userPools';
+          break;
+        case 'public':
+          // eslint-disable-next-line no-param-reassign
+          rule.provider = 'apiKey';
+          break;
+        case 'custom':
+          // eslint-disable-next-line no-param-reassign
+          rule.provider = 'function';
+          break;
+        default:
+          throw new Error(`Need to specify an allow to assigned a provider: ${rule}`);
+      }
+    }
+
+    if (rule.provider === 'iam') {
+      // eslint-disable-next-line no-param-reassign
+      rule.generateIAMPolicy = true;
+    }
+
+    splitReadOperation(rule);
+  });
+
+  return rules;
 };
 
 /**
@@ -37,15 +108,17 @@ export const getStackForField = (
   const fieldDirectives = fieldNode.directives.map(d => d.name.value);
   if (fieldDirectives.includes('function')) {
     return ctx.stackManager.getStack('FunctionDirectiveStack');
-  } else if (fieldDirectives.includes('predictions')) {
+  } if (fieldDirectives.includes('predictions')) {
     return ctx.stackManager.getStack('PredictionsDirectiveStack');
-  } else if (hasModelDirective) {
+  } if (hasModelDirective) {
     return ctx.stackManager.getStack(obj.name.value);
-  } else {
-    return ctx.stackManager.rootStack;
   }
+  return ctx.stackManager.rootStack;
 };
 
+/**
+ * get auth providers
+ */
 export const getConfiguredAuthProviders = (config: AuthTransformerConfig): ConfiguredAuthProviders => {
   const providers = [
     config.authConfig.defaultAuthentication.authenticationType,
@@ -63,6 +136,8 @@ export const getConfiguredAuthProviders = (config: AuthTransformerConfig): Confi
         return 'oidc';
       case 'AWS_LAMBDA':
         return 'function';
+      default:
+        throw new Error('Unknown auth type');
     }
   };
   const hasIAM = providers.some(p => p === 'AWS_IAM');
@@ -87,8 +162,12 @@ export const getConfiguredAuthProviders = (config: AuthTransformerConfig): Confi
  * access by the provider
  */
 export const getReadRolesForField = (acm: AccessControlMatrix, readRoles: Array<string>, fieldName: string): Array<string> => {
-  const hasCognitoPrivateRole = readRoles.some(r => r === 'userPools:private') && acm.isAllowed('userPools:private', fieldName, 'read');
-  const hasOIDCPrivateRole = readRoles.some(r => r === 'oidc:private') && acm.isAllowed('oidc:private', fieldName, 'read');
+  const hasCognitoPrivateRole = readRoles.some(r => r === 'userPools:private')
+    && acm.isAllowed('userPools:private', fieldName, 'list')
+    && acm.isAllowed('userPools:private', fieldName, 'get');
+  const hasOIDCPrivateRole = readRoles.some(r => r === 'oidc:private')
+    && acm.isAllowed('oidc:private', fieldName, 'list')
+    && acm.isAllowed('oidc:private', fieldName, 'get');
   let allowedRoles = [...readRoles];
 
   if (hasCognitoPrivateRole) {
@@ -98,36 +177,4 @@ export const getReadRolesForField = (acm: AccessControlMatrix, readRoles: Array<
     allowedRoles = allowedRoles.filter(r => !(r.startsWith('oidc:') && r !== 'oidc:private'));
   }
   return allowedRoles;
-};
-
-export const getAuthDirectiveRules = (authDir: DirectiveWrapper): AuthRule[] => {
-  const rules = authDir.getArguments<{ rules: Array<AuthRule> }>({ rules: [] }).rules;
-  for (const rule of rules) {
-    rule.operations = rule.operations ?? MODEL_OPERATIONS;
-
-    if (!rule.provider) {
-      switch (rule.allow) {
-        case 'owner':
-        case 'groups':
-          rule.provider = 'userPools';
-          break;
-        case 'private':
-          rule.provider = 'userPools';
-          break;
-        case 'public':
-          rule.provider = 'apiKey';
-          break;
-        case 'custom':
-          rule.provider = 'function';
-          break;
-        default:
-          throw new Error(`Need to specify an allow to assigned a provider: ${rule}`);
-      }
-    }
-
-    if (rule.provider === 'iam') {
-      rule.generateIAMPolicy = true;
-    }
-  }
-  return rules;
 };

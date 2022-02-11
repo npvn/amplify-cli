@@ -1,23 +1,25 @@
 import { AppSyncAuthConfiguration } from '@aws-amplify/graphql-transformer-interfaces';
+import { ModelOperation } from '../utils/definitions';
 
-export type ACMTest = {
+/**
+ * type for ACM testing
+ */
+export type AcmTest = {
   sdl: string;
   authConfig: AppSyncAuthConfiguration;
   models: {
     name: string;
     validations: {
       roleType: string;
-      operations: {
-        create: string[];
-        read: string[];
-        update: string[];
-        delete: string[];
-      };
+      operations: Record<ModelOperation, string[]>
     }[];
   }[];
 };
 
-export const acmTests: { [key: string]: ACMTest } = {
+/**
+ * ACM tests library
+ */
+export const acmTests: { [key: string]: AcmTest } = {
   'Simple Owner @auth': {
     sdl: `
       type Model @model @auth(rules: [{allow: owner}]) {
@@ -39,7 +41,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:owner:owner:username',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              list: ['id', 'description'],
+              get: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },
@@ -70,7 +73,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:owner:owner:username',
             operations: {
               create: [],
-              read: [],
+              get: [],
+              list: [],
               update: [],
               delete: [],
             },
@@ -101,7 +105,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:owner:owner:username',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              get: ['id', 'description'],
+              list: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },
@@ -132,7 +137,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:owner:owner:username',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              get: ['id', 'description'],
+              list: ['id', 'description'],
               update: ['id', 'description'],
               delete: [],
             },
@@ -163,7 +169,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:owner:owner:username',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              get: ['id', 'description'],
+              list: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },
@@ -194,7 +201,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:owner:owner:username',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              get: ['id', 'description'],
+              list: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },
@@ -225,7 +233,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:owner:owner:username',
             operations: {
               create: ['id', 'description'],
-              read: ['description'],
+              get: ['description'],
+              list: ['description'],
               update: ['description'],
               delete: ['id'],
             },
@@ -256,7 +265,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:owner:owner:username',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              list: ['id', 'description'],
+              get: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id'],
             },
@@ -287,7 +297,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:owner:owner:username',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              get: ['id', 'description'],
+              list: ['id', 'description'],
               update: ['description'],
               delete: [],
             },
@@ -318,7 +329,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'apiKey:public',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              get: ['id', 'description'],
+              list: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },
@@ -349,7 +361,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'apiKey:public',
             operations: {
               create: [],
-              read: [],
+              get: [],
+              list: [],
               update: [],
               delete: [],
             },
@@ -380,7 +393,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'apiKey:public',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              get: ['id', 'description'],
+              list: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },
@@ -411,7 +425,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'apiKey:public',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              get: ['id', 'description'],
+              list: ['id', 'description'],
               update: ['id', 'description'],
               delete: [],
             },
@@ -442,7 +457,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'apiKey:public',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              get: ['id', 'description'],
+              list: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },
@@ -473,7 +489,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'apiKey:public',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              list: ['id', 'description'],
+              get: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },
@@ -504,7 +521,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'apiKey:public',
             operations: {
               create: ['id', 'description'],
-              read: ['description'],
+              get: ['description'],
+              list: ['description'],
               update: ['description'],
               delete: ['id'],
             },
@@ -535,7 +553,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'apiKey:public',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              get: ['id', 'description'],
+              list: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id'],
             },
@@ -566,7 +585,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'apiKey:public',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              get: ['id', 'description'],
+              list: ['id', 'description'],
               update: ['description'],
               delete: [],
             },
@@ -597,7 +617,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:private',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              get: ['id', 'description'],
+              list: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },
@@ -628,7 +649,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:private',
             operations: {
               create: [],
-              read: [],
+              list: [],
+              get: [],
               update: [],
               delete: [],
             },
@@ -659,7 +681,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:private',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              get: ['id', 'description'],
+              list: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },
@@ -690,7 +713,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:private',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              get: ['id', 'description'],
+              list: ['id', 'description'],
               update: ['id', 'description'],
               delete: [],
             },
@@ -721,7 +745,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:private',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              get: ['id', 'description'],
+              list: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },
@@ -752,7 +777,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:private',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              get: ['id', 'description'],
+              list: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },
@@ -783,7 +809,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:private',
             operations: {
               create: ['id', 'description'],
-              read: ['description'],
+              list: ['description'],
+              get: ['description'],
               update: ['description'],
               delete: ['id'],
             },
@@ -814,7 +841,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:private',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              get: ['id', 'description'],
+              list: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id'],
             },
@@ -845,7 +873,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:private',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              list: ['id', 'description'],
+              get: ['id', 'description'],
               update: ['description'],
               delete: [],
             },
@@ -876,7 +905,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:staticGroup:Admin:cognito:groups',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              list: ['id', 'description'],
+              get: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },
@@ -907,7 +937,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:staticGroup:Admin:cognito:groups',
             operations: {
               create: [],
-              read: [],
+              get: [],
+              list: [],
               update: [],
               delete: [],
             },
@@ -938,7 +969,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:staticGroup:Admin:cognito:groups',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              list: ['id', 'description'],
+              get: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },
@@ -969,7 +1001,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:staticGroup:Admin:cognito:groups',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              list: ['id', 'description'],
+              get: ['id', 'description'],
               update: ['id', 'description'],
               delete: [],
             },
@@ -1000,7 +1033,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:staticGroup:Admin:cognito:groups',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              list: ['id', 'description'],
+              get: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },
@@ -1031,7 +1065,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:staticGroup:Admin:cognito:groups',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              list: ['id', 'description'],
+              get: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },
@@ -1062,7 +1097,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:staticGroup:Admin:cognito:groups',
             operations: {
               create: ['id', 'description'],
-              read: ['description'],
+              list: ['description'],
+              get: ['description'],
               update: ['description'],
               delete: ['id'],
             },
@@ -1093,7 +1129,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:staticGroup:Admin:cognito:groups',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              list: ['id', 'description'],
+              get: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id'],
             },
@@ -1124,7 +1161,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:staticGroup:Admin:cognito:groups',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              list: ['id', 'description'],
+              get: ['id', 'description'],
               update: ['description'],
               delete: [],
             },
@@ -1155,7 +1193,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:owner:owner:username',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              list: ['id', 'description'],
+              get: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },
@@ -1164,7 +1203,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:private',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              list: ['id', 'description'],
+              get: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },
@@ -1195,7 +1235,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:owner:owner:username',
             operations: {
               create: ['id'],
-              read: ['id'],
+              list: ['id'],
+              get: ['id'],
               update: ['id'],
               delete: ['id'],
             },
@@ -1204,7 +1245,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:private',
             operations: {
               create: ['description'],
-              read: ['description'],
+              list: ['description'],
+              get: ['description'],
               update: ['description'],
               delete: ['description'],
             },
@@ -1236,7 +1278,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:owner:author:username',
             operations: {
               create: ['id', 'description', 'author'],
-              read: ['id', 'description'],
+              list: ['id', 'description'],
+              get: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },
@@ -1268,7 +1311,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:owner:authors:username',
             operations: {
               create: ['id', 'description', 'authors'],
-              read: ['id', 'description'],
+              list: ['id', 'description'],
+              get: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },
@@ -1300,7 +1344,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:owner:author:sub',
             operations: {
               create: ['id', 'description', 'author'],
-              read: ['id', 'description'],
+              list: ['id', 'description'],
+              get: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },
@@ -1331,7 +1376,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:owner:id:username',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              list: ['id', 'description'],
+              get: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },
@@ -1362,7 +1408,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:owner:description:username',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              list: ['id', 'description'],
+              get: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },
@@ -1396,7 +1443,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:owner:description:username',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              list: ['id', 'description'],
+              get: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },
@@ -1410,7 +1458,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:owner:id:username',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              list: ['id', 'description'],
+              get: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },
@@ -1443,7 +1492,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:owner:description:username',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              list: ['id', 'description'],
+              get: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },
@@ -1477,7 +1527,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:owner:description:username',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              list: ['id', 'description'],
+              get: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },
@@ -1491,7 +1542,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:owner:id:username',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              list: ['id', 'description'],
+              get: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },
@@ -1525,7 +1577,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:owner:description:username',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              list: ['id', 'description'],
+              get: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },
@@ -1539,7 +1592,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:owner:id:username',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              list: ['id', 'description'],
+              get: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },
@@ -1573,7 +1627,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:owner:description:username',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              list: ['id', 'description'],
+              get: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },
@@ -1587,7 +1642,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:owner:id:username',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              list: ['id', 'description'],
+              get: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },
@@ -1618,7 +1674,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:dynamicGroup:id:cognito:groups',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              list: ['id', 'description'],
+              get: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },
@@ -1649,7 +1706,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:dynamicGroup:description:cognito:groups',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              list: ['id', 'description'],
+              get: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },
@@ -1683,7 +1741,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:dynamicGroup:id:cognito:groups',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              list: ['id', 'description'],
+              get: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },
@@ -1697,7 +1756,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:dynamicGroup:description:cognito:groups',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              get: ['id', 'description'],
+              list: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },
@@ -1730,7 +1790,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:dynamicGroup:description:cognito:groups',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              get: ['id', 'description'],
+              list: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },
@@ -1764,7 +1825,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:dynamicGroup:description:cognito:groups',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              list: ['id', 'description'],
+              get: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },
@@ -1778,7 +1840,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:dynamicGroup:id:cognito:groups',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              list: ['id', 'description'],
+              get: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },
@@ -1812,7 +1875,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:dynamicGroup:id:cognito:groups',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              list: ['id', 'description'],
+              get: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },
@@ -1826,7 +1890,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:dynamicGroup:description:cognito:groups',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              list: ['id', 'description'],
+              get: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },
@@ -1860,7 +1925,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:dynamicGroup:description:cognito:groups',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              list: ['id', 'description'],
+              get: ['id', 'description'],
               update: [],
               delete: [],
             },
@@ -1874,7 +1940,8 @@ export const acmTests: { [key: string]: ACMTest } = {
             roleType: 'userPools:dynamicGroup:id:cognito:groups',
             operations: {
               create: ['id', 'description'],
-              read: ['id', 'description'],
+              list: ['id', 'description'],
+              get: ['id', 'description'],
               update: ['id', 'description'],
               delete: ['id', 'description'],
             },

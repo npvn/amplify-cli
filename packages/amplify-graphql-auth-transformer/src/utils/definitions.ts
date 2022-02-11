@@ -1,9 +1,8 @@
 import { AppSyncAuthConfiguration } from '@aws-amplify/graphql-transformer-interfaces';
 export type AuthStrategy = 'owner' | 'groups' | 'public' | 'private' | 'custom';
 export type AuthProvider = 'apiKey' | 'iam' | 'oidc' | 'userPools' | 'function';
-export type ModelQuery = 'get' | 'list';
 export type ModelMutation = 'create' | 'update' | 'delete';
-export type ModelOperation = 'create' | 'update' | 'delete' | 'read';
+export type ModelOperation = 'create' | 'update' | 'delete' | 'get' | 'list';
 
 export type RelationalPrimaryMapConfig = Map<string, { claim: string; field: string }>;
 export interface SearchableConfig {
@@ -105,5 +104,7 @@ export const authDirectiveDefinition = `
     update
     delete
     read
+    list
+    get
   }
 `;

@@ -132,6 +132,8 @@ enum ModelOperation {
   update
   delete
   read
+  get
+  list
 }
 enum ModelQuery @deprecated(reason: "ModelQuery will be replaced by the 'ModelOperation' in a future release.") {
   get

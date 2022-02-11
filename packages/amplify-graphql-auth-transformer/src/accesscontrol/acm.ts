@@ -1,6 +1,6 @@
 import assert from 'assert';
 import { InvalidDirectiveError, TransformerContractError } from '@aws-amplify/graphql-transformer-core';
-import { ModelOperation } from '../utils';
+import { ModelOperation } from '../utils/definitions';
 
 type ACMConfig = {
   resources: string[];
@@ -45,12 +45,17 @@ export class AccessControlMatrix {
     this.name = config.name;
     this.operations = config.operations;
     this.resources = config.resources;
-    this.matrix = new Array();
-    this.roles = new Array();
+    this.matrix = [];
+    this.roles = [];
   }
 
+  /**
+   *
+   */
   public setRole(input: SetRoleInput): void {
-    const { role, resource, operations, allowRoleOverwrite = false } = input;
+    const {
+      role, resource, operations, allowRoleOverwrite = false,
+    } = input;
     this.validate({ resource, operations });
     let allowedVector: Array<Array<boolean>>;
     if (!this.roles.includes(role)) {
@@ -67,26 +72,44 @@ export class AccessControlMatrix {
     }
   }
 
+  /**
+   *
+   */
   public hasRole(role: string): boolean {
     return this.roles.includes(role);
   }
 
+  /**
+   *
+   */
   public getName(): string {
     return this.name;
   }
 
+  /**
+   *
+   */
   public getRoles(): Array<string> {
     return this.roles;
   }
 
+  /**
+   *
+   */
   public getResources(): Readonly<Array<string>> {
     return this.resources;
   }
 
+  /**
+   *
+   */
   public hasResource(resource: string): boolean {
     return this.resources.includes(resource);
   }
 
+  /**
+   *
+   */
   public isAllowed(role: string, resource: string, operation: ModelOperation): boolean {
     this.validate({ role, resource, operations: [operation] });
     const roleIndex = this.roles.indexOf(role);
@@ -95,6 +118,9 @@ export class AccessControlMatrix {
     return this.matrix[roleIndex][resourceIndex][operationIndex];
   }
 
+  /**
+   *
+   */
   public resetAccessForResource(resource: string): void {
     this.validate({ resource });
     const resourceIndex = this.resources.indexOf(resource);
@@ -110,20 +136,16 @@ export class AccessControlMatrix {
    * @param fullAccess boolean
    * @returns array of roles
    */
-  public getRolesPerOperation(operation: ModelOperation, fullAccess: boolean = false): Array<string> {
+  public getRolesPerOperation(operation: ModelOperation, fullAccess = false): Array<string> {
     this.validate({ operations: [operation] });
     const operationIndex = this.operations.indexOf(operation);
     const roles = new Array<string>();
     for (let x = 0; x < this.roles.length; x++) {
-      let hasOperation: boolean = false;
+      let hasOperation = false;
       if (fullAccess) {
-        hasOperation = this.resources.every((resource, idx) => {
-          return this.matrix[x][idx][operationIndex];
-        });
+        hasOperation = this.resources.every((resource, idx) => this.matrix[x][idx][operationIndex]);
       } else {
-        hasOperation = this.resources.some((resource, idx) => {
-          return this.matrix[x][idx][operationIndex];
-        });
+        hasOperation = this.resources.some((resource, idx) => this.matrix[x][idx][operationIndex]);
       }
       if (hasOperation) roles.push(this.roles[x]);
     }
@@ -137,7 +159,7 @@ export class AccessControlMatrix {
   public getAcmPerRole(): Map<string, Object> {
     const acmPerRole: Map<string, Object> = new Map();
     for (let i = 0; i < this.matrix.length; i++) {
-      let tableObj: any = {};
+      const tableObj: any = {};
       for (let y = 0; y < this.matrix[i].length; y++) {
         tableObj[this.resources[y]] = this.matrix[i][y].reduce((prev: any, resource: boolean, index: number) => {
           prev[this.operations[index]] = resource;
@@ -161,8 +183,7 @@ export class AccessControlMatrix {
     }
     if (input.operations) {
       input.operations.forEach(operation => {
-        if (this.operations.indexOf(operation) === -1)
-          throw new TransformerContractError(`Operation: ${operation} does not exist in the ACM.`);
+        if (this.operations.indexOf(operation) === -1) { throw new TransformerContractError(`Operation: ${operation} does not exist in the ACM.`); }
       });
     }
   }
@@ -178,7 +199,7 @@ export class AccessControlMatrix {
   private getResourceOperationMatrix(input: ResourceOperationInput): Array<Array<boolean>> {
     const { operations, resource, role } = input;
     let fieldAllowVector: boolean[][] = [];
-    let operationList: boolean[] = this.getOperationList(operations);
+    const operationList: boolean[] = this.getOperationList(operations);
     if (role && resource) {
       const roleIndex = this.roles.indexOf(role);
       const resourceIndex = this.resources.indexOf(resource);
@@ -201,8 +222,8 @@ export class AccessControlMatrix {
   }
 
   private getOperationList(operations: Array<string>): Array<boolean> {
-    let operationList: Array<boolean> = new Array();
-    for (let operation of this.operations) {
+    const operationList: Array<boolean> = [];
+    for (const operation of this.operations) {
       operationList.push(operations.includes(operation));
     }
     return operationList;

@@ -1,18 +1,19 @@
 import { IndexTransformer, PrimaryKeyTransformer } from '@aws-amplify/graphql-index-transformer';
 import { ModelTransformer } from '@aws-amplify/graphql-model-transformer';
 import { GraphQLTransform } from '@aws-amplify/graphql-transformer-core';
+import { $TSAny } from 'amplify-cli-core';
 import { AuthTransformer } from '..';
-import { ACMTest, acmTests } from './acm-test-library';
+import { AcmTest, acmTests } from './acm-test-library';
 
 describe('acm tests', () => {
-  for (const [name, test] of Object.entries(acmTests)) {
+  Object.entries(acmTests).forEach(([name, test]) => {
     it(`ACM test '${name}' passes as expected`, () => {
       testSchemaACM(test);
     });
-  }
+  });
 });
 
-const testSchemaACM = (test: ACMTest): void => {
+const testSchemaACM = (test: AcmTest): void => {
   const authTransformer = new AuthTransformer();
   const transformer = new GraphQLTransform({
     authConfig: test.authConfig,
@@ -21,21 +22,21 @@ const testSchemaACM = (test: ACMTest): void => {
 
   transformer.transform(test.sdl);
 
-  for (const model of test.models) {
-    const acm = (authTransformer as any).authModelConfig.get(model.name);
+  test.models.forEach(model => {
+    const acm = (authTransformer as $TSAny).authModelConfig.get(model.name);
     expect(acm).toBeDefined();
     const resourceFields = acm.getResources();
 
-    for (const validation of model.validations) {
-      for (const [operation, fields] of Object.entries(validation.operations)) {
-        const role = acm.getRolesPerOperation(operation).find(it => it === validation.roleType);
+    model.validations.forEach(validation => {
+      Object.entries(validation.operations).forEach(([operation, fields]) => {
+        const role = acm.getRolesPerOperation(operation).find((it: string) => it === validation.roleType);
         expect(role || (!role && fields.length === 0)).toBeTruthy();
 
         if (role) {
-          const allowedFields = resourceFields.filter((resource: any) => acm.isAllowed(role, resource, operation));
+          const allowedFields = resourceFields.filter((resource: $TSAny) => acm.isAllowed(role, resource, operation));
           expect(allowedFields).toEqual(fields);
         }
-      }
-    }
-  }
+      });
+    });
+  });
 };

@@ -983,6 +983,12 @@ export const getIAMPolicies = (resourceName: string, operations: string[]) => {
         case 'read':
           actions.push('appsync:Get*', 'appsync:List*');
           break;
+        case 'get':
+          actions.push('appsync:Get*');
+          break;
+        case 'list':
+          actions.push('appsync:List*');
+          break;
         case 'delete':
           actions.push('appsync:Delete*');
           break;
