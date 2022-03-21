@@ -21,13 +21,16 @@ import {
 } from '@aws-amplify/graphql-transformer-core';
 import { Template } from '@aws-amplify/graphql-transformer-core/lib/config/project-config';
 import { MapsToTransformer } from '@aws-amplify/graphql-maps-to-transformer';
-import { OverrideConfig } from '@aws-amplify/graphql-transformer-core/lib/transformation/types';
+import { DeploymentResources, OverrideConfig } from '@aws-amplify/graphql-transformer-core/lib/transformation/types';
 import { AppSyncAuthConfiguration, TransformerPluginProvider } from '@aws-amplify/graphql-transformer-interfaces';
 import {
+  $TSAny,
   $TSContext,
   AmplifyCategories,
   AmplifySupportedService,
+  FeatureFlags,
   getGraphQLTransformerAuthDocLink,
+  getGraphQLTransformerOpenSearchProductionDocLink,
   JSONUtilities,
   pathManager,
   stateManager,
@@ -35,21 +38,22 @@ import {
 import { printer } from 'amplify-prompts';
 import fs from 'fs-extra';
 import { print } from 'graphql';
-import { ResourceConstants } from 'graphql-transformer-common';
 import { getSanityCheckRules, loadProject } from 'graphql-transformer-core';
 import importFrom from 'import-from';
 import importGlobal from 'import-global';
 import _ from 'lodash';
 import path from 'path';
+import { ResourceConstants } from 'graphql-transformer-common/lib/ResourceConstants';
 import { destructiveUpdatesFlag, ProviderName as providerName } from '../constants';
-import { getTransformerVersion, searchablePushChecks } from '../transform-graphql-schema';
 import { hashDirectory } from '../upload-appsync-files';
 import { AmplifyCLIFeatureFlagAdapter } from '../utils/amplify-cli-feature-flag-adapter';
 import { isAuthModeUpdated } from '../utils/auth-mode-compare';
 import { schemaHasSandboxModeEnabled, showGlobalSandboxModeWarning, showSandboxModePrompts } from '../utils/sandbox-mode-helpers';
 import { GraphQLSanityCheck, SanityCheckRules } from './sanity-check';
 import { parseUserDefinedSlots } from './user-defined-slots';
-import { getAdminRoles, getIdentityPoolId, mergeUserConfigWithTransformOutput, writeDeploymentToDisk } from './utils';
+import {
+  getAdminRoles, getIdentityPoolId, mergeUserConfigWithTransformOutput, writeDeploymentToDisk,
+} from './utils';
 
 const API_CATEGORY = 'api';
 const STORAGE_CATEGORY = 'storage';
@@ -59,10 +63,9 @@ const SCHEMA_DIR_NAME = 'schema';
 const ROOT_APPSYNC_S3_KEY = 'amplify-appsync-files';
 const S3_SERVICE_NAME = 'S3';
 
-const TRANSFORM_CONFIG_FILE_NAME = `transform.conf.json`;
+const TRANSFORM_CONFIG_FILE_NAME = 'transform.conf.json';
 
-function warnOnAuth(map, docLink) {
-  const a: boolean = true;
+const warnOnAuth = ((map, docLink): void => {
   const unAuthModelTypes = Object.keys(map).filter(type => !map[type].includes('auth') && map[type].includes('model'));
   if (unAuthModelTypes.length) {
     printer.info(
@@ -73,112 +76,114 @@ function warnOnAuth(map, docLink) {
     printer.info(unAuthModelTypes.map(type => `\t - ${type}`).join('\n'), 'yellow');
     printer.info(`Learn more about "@auth" authorization rules here: ${docLink}`, 'yellow');
   }
-}
+});
 
-function getTransformerFactory(
+const getTransformerFactory = (
   context: $TSContext,
   resourceDir: string,
-): (options: TransformerFactoryArgs) => Promise<TransformerPluginProvider[]> {
-  return async (options?: TransformerFactoryArgs) => {
-    const modelTransformer = new ModelTransformer();
-    const indexTransformer = new IndexTransformer();
-    const hasOneTransformer = new HasOneTransformer();
-    const authTransformer = new AuthTransformer({
-      adminRoles: options.adminRoles ?? [],
-      identityPoolId: options.identityPoolId,
-    });
-    const transformerList: TransformerPluginProvider[] = [
-      modelTransformer,
-      new FunctionTransformer(),
-      new HttpTransformer(),
-      new PredictionsTransformer(options?.storageConfig),
-      new PrimaryKeyTransformer(),
-      indexTransformer,
-      new BelongsToTransformer(),
-      new HasManyTransformer(),
-      hasOneTransformer,
-      new ManyToManyTransformer(modelTransformer, indexTransformer, hasOneTransformer, authTransformer),
-      new DefaultValueTransformer(),
-      authTransformer,
-      new MapsToTransformer(),
-      // TODO: initialize transformer plugins
-    ];
+): (options: TransformerFactoryArgs
+) => Promise<TransformerPluginProvider[]> => async (options?: TransformerFactoryArgs) => {
+  const modelTransformer = new ModelTransformer();
+  const indexTransformer = new IndexTransformer();
+  const hasOneTransformer = new HasOneTransformer();
+  const authTransformer = new AuthTransformer({
+    adminRoles: options.adminRoles ?? [],
+    identityPoolId: options.identityPoolId,
+  });
+  const transformerList: TransformerPluginProvider[] = [
+    modelTransformer,
+    new FunctionTransformer(),
+    new HttpTransformer(),
+    new PredictionsTransformer(options?.storageConfig),
+    new PrimaryKeyTransformer(),
+    indexTransformer,
+    new HasManyTransformer(),
+    hasOneTransformer,
+    new BelongsToTransformer(),
+    new ManyToManyTransformer(modelTransformer, indexTransformer, hasOneTransformer, authTransformer),
+    new DefaultValueTransformer(),
+    authTransformer,
+    new MapsToTransformer(),
+    // TODO: initialize transformer plugins
+  ];
 
-    if (options?.addSearchableTransformer) {
-      transformerList.push(new SearchableModelTransformer());
-    }
+  if (options?.addSearchableTransformer) {
+    transformerList.push(new SearchableModelTransformer());
+  }
 
-    const customTransformersConfig = await loadProject(resourceDir);
-    const customTransformerList = customTransformersConfig?.config?.transformers;
-    const customTransformers = (Array.isArray(customTransformerList) ? customTransformerList : [])
-      .map(transformer => {
-        const fileUrlMatch = /^file:\/\/(.*)\s*$/m.exec(transformer);
-        const modulePath = fileUrlMatch ? fileUrlMatch[1] : transformer;
+  const customTransformersConfig = await loadProject(resourceDir);
+  const customTransformerList = customTransformersConfig?.config?.transformers;
+  const customTransformers = (Array.isArray(customTransformerList) ? customTransformerList : [])
+    .map(transformer => {
+      const fileUrlMatch = /^file:\/\/(.*)\s*$/m.exec(transformer);
+      const modulePath = fileUrlMatch ? fileUrlMatch[1] : transformer;
 
-        if (!modulePath) {
-          throw new Error(`Invalid value specified for transformer: '${transformer}'`);
-        }
+      if (!modulePath) {
+        throw new Error(`Invalid value specified for transformer: '${transformer}'`);
+      }
 
-        // The loading of transformer can happen multiple ways in the following order:
-        // - modulePath is an absolute path to an NPM package
-        // - modulePath is a package name, then it will be loaded from the project's root's node_modules with createRequireFromPath.
-        // - modulePath is a name of a globally installed package
-        let importedModule;
-        const tempModulePath = modulePath.toString();
+      // The loading of transformer can happen multiple ways in the following order:
+      // - modulePath is an absolute path to an NPM package
+      // - modulePath is a package name, then it will be loaded from the project's root's node_modules with createRequireFromPath.
+      // - modulePath is a name of a globally installed package
+      let importedModule;
+      const tempModulePath = modulePath.toString();
 
-        try {
-          if (path.isAbsolute(tempModulePath)) {
-            // Load it by absolute path
-            importedModule = require(modulePath);
-          } else {
-            const projectRootPath = context.amplify.pathManager.searchProjectRootPath();
-            const projectNodeModules = path.join(projectRootPath, 'node_modules');
+      try {
+        if (path.isAbsolute(tempModulePath)) {
+          // Load it by absolute path
+          // eslint-disable-next-line global-require, import/no-dynamic-require
+          importedModule = require(modulePath);
+        } else {
+          const projectRootPath = context.amplify.pathManager.searchProjectRootPath();
+          const projectNodeModules = path.join(projectRootPath, 'node_modules');
 
-            try {
-              importedModule = importFrom(projectNodeModules, modulePath);
-            } catch (_) {
-              // Intentionally left blank to try global
-            }
-
-            // Try global package install
-            if (!importedModule) {
-              importedModule = importGlobal(modulePath);
-            }
+          try {
+            importedModule = importFrom(projectNodeModules, modulePath);
+          } catch (ignore) {
+            // Intentionally left blank to try global
           }
 
-          // At this point we've to have an imported module, otherwise module loader, threw an error.
-          return importedModule;
-        } catch (error) {
-          context.print.error(`Unable to import custom transformer module(${modulePath}).`);
-          context.print.error(`You may fix this error by editing transformers at ${path.join(resourceDir, TRANSFORM_CONFIG_FILE_NAME)}`);
-          throw error;
-        }
-      })
-      .map(imported => {
-        const CustomTransformer = imported.default;
-
-        if (typeof CustomTransformer === 'function') {
-          return new CustomTransformer();
-        } else if (typeof CustomTransformer === 'object') {
-          // Todo: Use a shim to ensure that it adheres to TransformerProvider interface. For now throw error
-          // return CustomTransformer;
-          throw new Error("Custom Transformers' should implement TransformerProvider interface");
+          // Try global package install
+          if (!importedModule) {
+            importedModule = importGlobal(modulePath);
+          }
         }
 
-        throw new Error("Custom Transformers' default export must be a function or an object");
-      })
-      .filter(customTransformer => customTransformer);
+        // At this point we've to have an imported module, otherwise module loader, threw an error.
+        return importedModule;
+      } catch (error) {
+        context.print.error(`Unable to import custom transformer module(${modulePath}).`);
+        context.print.error(`You may fix this error by editing transformers at ${path.join(resourceDir, TRANSFORM_CONFIG_FILE_NAME)}`);
+        throw error;
+      }
+    })
+    .map(imported => {
+      const CustomTransformer = imported.default;
 
-    if (customTransformers.length > 0) {
-      transformerList.push(...customTransformers);
-    }
+      if (typeof CustomTransformer === 'function') {
+        return new CustomTransformer();
+      } if (typeof CustomTransformer === 'object') {
+        // Todo: Use a shim to ensure that it adheres to TransformerProvider interface. For now throw error
+        // return CustomTransformer;
+        throw new Error("Custom Transformers' should implement TransformerProvider interface");
+      }
 
-    return transformerList;
-  };
-}
+      throw new Error("Custom Transformers' default export must be a function or an object");
+    })
+    .filter(customTransformer => customTransformer);
 
-export async function transformGraphQLSchema(context, options) {
-  let resourceName: string;
+  if (customTransformers.length > 0) {
+    transformerList.push(...customTransformers);
+  }
+
+  return transformerList;
+};
+
+/**
+ * transformGraphQLSchema
+ */
+export const transformGraphQLSchema = async (context, options): Promise<DeploymentResources | undefined> => {
   const backEndDir = context.amplify.pathManager.getBackendDirPath();
   const flags = context.parameters.options;
   if (flags['no-gql-override']) {
@@ -224,6 +229,7 @@ export async function transformGraphQLSchema(context, options) {
     }
   }
 
+  let resourceName: string;
   let previouslyDeployedBackendDir = options.cloudBackendDirectory;
   if (!previouslyDeployedBackendDir) {
     if (resources.length > 0) {
@@ -280,13 +286,14 @@ export async function transformGraphQLSchema(context, options) {
     }
   }
 
-  // for auth transformer we get any admin roles and a cognito identity pool to check for potential authenticated roles outside of the provided authRole
+  // for auth transformer we get any admin roles and a cognito identity pool to check for potential
+  // authenticated roles outside of the provided authRole
   const adminRoles = await getAdminRoles(context, resourceName);
   const identityPoolId = await getIdentityPoolId(context);
 
   // for the predictions directive get storage config
   const s3Resource = s3ResourceAlreadyExists(context);
-  const storageConfig = s3Resource ? getBucketName(context, s3Resource, backEndDir) : undefined;
+  const storageConfig = s3Resource ? getBucketName(context, s3Resource) : undefined;
 
   const buildDir = path.normalize(path.join(resourceDir, 'build'));
   const schemaFilePath = path.normalize(path.join(resourceDir, SCHEMA_FILENAME));
@@ -318,14 +325,11 @@ export async function transformGraphQLSchema(context, options) {
   const docLink = getGraphQLTransformerAuthDocLink(transformerVersion);
   const sandboxModeEnabled = schemaHasSandboxModeEnabled(project.schema, docLink);
   const directiveMap = collectDirectivesByTypeNames(project.schema);
-  const hasApiKey =
-    authConfig.defaultAuthentication.authenticationType === 'API_KEY' ||
-    authConfig.additionalAuthenticationProviders.some(a => a.authenticationType === 'API_KEY');
+  const hasApiKey = authConfig.defaultAuthentication.authenticationType === 'API_KEY'
+    || authConfig.additionalAuthenticationProviders.some(a => a.authenticationType === 'API_KEY');
   const showSandboxModeMessage = sandboxModeEnabled && hasApiKey;
 
   if (showSandboxModeMessage) {
-    const transformerVersion = await getTransformerVersion(context);
-    const docLink = getGraphQLTransformerAuthDocLink(transformerVersion);
     showGlobalSandboxModeWarning(docLink);
   } else warnOnAuth(directiveMap.types, docLink);
 
@@ -362,7 +366,7 @@ export async function transformGraphQLSchema(context, options) {
 
   /**
    * if Auth is not migrated , we need to fetch resolver Config from transformer.conf.json
-   * since above function will return empt object
+   * since above function will return empty object
    */
   if (_.isEmpty(resolverConfig)) {
     resolverConfig = project.config.ResolverConfig;
@@ -388,7 +392,7 @@ export async function transformGraphQLSchema(context, options) {
     authConfig,
     sandboxModeEnabled,
     sanityCheckRules,
-    resolverConfig: resolverConfig,
+    resolverConfig,
   };
 
   const transformerOutput = await buildAPIProject(buildConfig);
@@ -403,16 +407,17 @@ place .graphql files in a directory at ${schemaDirPath}`);
     JSONUtilities.writeJson(parametersFilePath, parameters);
   }
 
+  // eslint-disable-next-line consistent-return
   return transformerOutput;
-}
+};
 
-function getProjectBucket(context) {
+const getProjectBucket = (context): $TSAny => {
   const projectDetails = context.amplify.getProjectDetails();
   const projectBucket = projectDetails.amplifyMeta.providers ? projectDetails.amplifyMeta.providers[providerName].DeploymentBucketName : '';
   return projectBucket;
-}
+};
 
-async function getPreviousDeploymentRootKey(previouslyDeployedBackendDir) {
+const getPreviousDeploymentRootKey = async (previouslyDeployedBackendDir): Promise<$TSAny> => {
   // this is the function
   let parameters;
   try {
@@ -426,9 +431,12 @@ async function getPreviousDeploymentRootKey(previouslyDeployedBackendDir) {
   } catch (err) {
     return undefined;
   }
-}
+};
 
-export async function getDirectiveDefinitions(context: $TSContext, resourceDir: string) {
+/**
+ * getDirectiveDefinitions
+ */
+export const getDirectiveDefinitions = async (context: $TSContext, resourceDir: string): Promise<string> => {
   const transformList = await getTransformerFactory(context, resourceDir)({ addSearchableTransformer: true, authConfig: {} });
   const appSynDirectives = getAppSyncServiceExtraDirectives();
   const transformDirectives = transformList
@@ -436,11 +444,11 @@ export async function getDirectiveDefinitions(context: $TSContext, resourceDir: 
     .join('\n');
 
   return [appSynDirectives, transformDirectives].join('\n');
-}
+};
 /**
  * Check if storage exists in the project if not return undefined
  */
-function s3ResourceAlreadyExists(context) {
+const s3ResourceAlreadyExists = (context): string | undefined => {
   const { amplify } = context;
   try {
     let resourceName;
@@ -460,9 +468,9 @@ function s3ResourceAlreadyExists(context) {
     }
     throw error;
   }
-}
+};
 
-function getBucketName(context, s3ResourceName, backEndDir) {
+const getBucketName = (context, s3ResourceName): { bucketName: string } => {
   const { amplify } = context;
   const { amplifyMeta } = amplify.getProjectDetails();
   const stackName = amplifyMeta.providers.awscloudformation.StackName;
@@ -479,16 +487,19 @@ function getBucketName(context, s3ResourceName, backEndDir) {
     ? `${bucketParameters.bucketName}\${hash}-\${env}`
     : `${bucketParameters.bucketName}${s3ResourceName}-\${env}`;
   return { bucketName };
-}
+};
 
 type TransformerFactoryArgs = {
   addSearchableTransformer: boolean;
-  authConfig: any;
-  storageConfig?: any;
+  authConfig: $TSAny;
+  storageConfig?: $TSAny;
   adminRoles?: Array<string>;
   identityPoolId?: string;
 };
 
+/**
+ * ProjectOptions
+ */
 export type ProjectOptions<T> = {
   buildParameters: {
     S3DeploymentBucket: string;
@@ -511,7 +522,10 @@ export type ProjectOptions<T> = {
   overrideConfig: OverrideConfig;
 };
 
-export async function buildAPIProject(opts: ProjectOptions<TransformerFactoryArgs>) {
+/**
+ * buildAPIProject
+ */
+export const buildAPIProject = async (opts: ProjectOptions<TransformerFactoryArgs>): Promise<DeploymentResources | undefined> => {
   const schema = opts.projectConfig.schema.toString();
   // Skip building the project if the schema is blank
   if (!schema) {
@@ -521,21 +535,22 @@ export async function buildAPIProject(opts: ProjectOptions<TransformerFactoryArg
   const builtProject = await _buildProject(opts);
 
   const buildLocation = path.join(opts.projectDirectory, 'build');
-  const currCloudLocation = opts.currentCloudBackendDirectory ? path.join(opts.currentCloudBackendDirectory, 'build') : undefined;
+  const currentCloudLocation = opts.currentCloudBackendDirectory ? path.join(opts.currentCloudBackendDirectory, 'build') : undefined;
 
   if (opts.projectDirectory && !opts.dryRun) {
     await writeDeploymentToDisk(builtProject, buildLocation, opts.rootStackFileName, opts.buildParameters, opts.minify);
-    const sanityChecker = new GraphQLSanityCheck(opts.sanityCheckRules, opts.rootStackFileName, currCloudLocation, buildLocation);
+    const sanityChecker = new GraphQLSanityCheck(opts.sanityCheckRules, opts.rootStackFileName, currentCloudLocation, buildLocation);
     await sanityChecker.validate();
   }
 
   // TODO: update local env on api compile
   // await _updateCurrentMeta(opts);
 
+  // eslint-disable-next-line consistent-return
   return builtProject;
-}
+};
 
-async function _buildProject(opts: ProjectOptions<TransformerFactoryArgs>) {
+const _buildProject = async (opts: ProjectOptions<TransformerFactoryArgs>): Promise<DeploymentResources> => {
   const userProjectConfig = opts.projectConfig;
   const stackMapping = userProjectConfig.config.StackMapping;
   const userDefinedSlots = {
@@ -564,4 +579,68 @@ async function _buildProject(opts: ProjectOptions<TransformerFactoryArgs>) {
   const transformOutput = transform.transform(schema);
 
   return mergeUserConfigWithTransformOutput(userProjectConfig, transformOutput, opts);
-}
+};
+
+/**
+ * searchablePushChecks
+ */
+export const searchablePushChecks = async (context, map, apiName): Promise<void> => {
+  const searchableModelTypes = Object.keys(map).filter(type => map[type].includes('searchable') && map[type].includes('model'));
+  if (searchableModelTypes.length) {
+    const currentEnv = context.amplify.getEnvInfo().envName;
+    const teamProviderInfo = stateManager.getTeamProviderInfo();
+    const instanceType = _.get(
+      teamProviderInfo,
+      [currentEnv, 'categories', 'api', apiName, ResourceConstants.PARAMETERS.ElasticsearchInstanceType],
+      't2.small.elasticsearch',
+    );
+    if (instanceType === 't2.small.elasticsearch' || instanceType === 't3.small.elasticsearch') {
+      const version = await getTransformerVersion(context);
+      const docLink = getGraphQLTransformerOpenSearchProductionDocLink(version);
+      printer.warn(
+        `Your instance type for OpenSearch is ${instanceType}, you may experience performance issues or data loss. Consider reconfiguring with the instructions here ${docLink}`,
+      );
+    }
+  }
+};
+
+/**
+ * getTransformerVersion
+ */
+export const getTransformerVersion = async (context): Promise<number> => {
+  const useExperimentalPipelineTransformer = FeatureFlags.getBoolean('graphQLTransformer.useExperimentalPipelinedTransformer');
+  let transformerVersion;
+  if (useExperimentalPipelineTransformer === false) {
+    transformerVersion = 1;
+  } else {
+    await migrateToTransformerVersionFeatureFlag(context);
+
+    transformerVersion = FeatureFlags.getNumber('graphQLTransformer.transformerVersion');
+    if (transformerVersion !== 1 && transformerVersion !== 2) {
+      throw new Error(`Invalid value specified for transformerVersion: '${transformerVersion}'`);
+    }
+  }
+
+  return transformerVersion;
+};
+
+const migrateToTransformerVersionFeatureFlag = async (context): Promise<void> => {
+  const projectPath = pathManager.findProjectRoot() ?? process.cwd();
+
+  const config = stateManager.getCLIJSON(projectPath, undefined, {
+    throwIfNotExist: false,
+    preserveComments: true,
+  });
+
+  const useExperimentalPipelineTransformer = FeatureFlags.getBoolean('graphQLTransformer.useExperimentalPipelinedTransformer');
+  const transformerVersion = FeatureFlags.getNumber('graphQLTransformer.transformerVersion');
+
+  if (useExperimentalPipelineTransformer && transformerVersion === 1) {
+    config.features.graphqltransformer.transformerversion = 2;
+    stateManager.setCLIJSON(projectPath, config);
+    await FeatureFlags.reloadValues();
+    context.print.warning(
+      `\nThe project is configured with 'transformerVersion': ${transformerVersion}, but 'useExperimentalPipelinedTransformer': ${useExperimentalPipelineTransformer}. Setting the 'transformerVersion': ${config.features.graphqltransformer.transformerversion}. 'useExperimentalPipelinedTransformer' is deprecated.`,
+    );
+  }
+};
