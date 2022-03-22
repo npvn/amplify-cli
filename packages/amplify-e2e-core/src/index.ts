@@ -7,12 +7,12 @@ import { spawnSync, execSync } from 'child_process';
 import { v4 as uuid } from 'uuid';
 import { pathManager } from 'amplify-cli-core';
 
-export * from './configure/';
-export * from './init/';
-export * from './utils/';
+export * from './configure';
+export * from './init';
+export * from './utils';
 export * from './categories';
 export * from './utils/sdk-calls';
-export * from './export/';
+export * from './export';
 export { addFeatureFlag } from './utils/feature-flags';
 export * from './cli-version-controller';
 
@@ -35,7 +35,7 @@ export function getCLIPath(testingWithLatestCodebase = false) {
     return process.platform === 'win32' ? 'amplify.exe' : 'amplify';
   }
 
-  const amplifyScriptPath = path.join(__dirname, '..', '..', 'amplify-cli', 'bin', 'amplify');
+  const amplifyScriptPath = path.join(__dirname, '..', '..', 'amplify-cli-builder', 'bin', 'amplify');
   return amplifyScriptPath;
 }
 
@@ -69,7 +69,7 @@ export function getNpmPath() {
 }
 
 export function isCI(): boolean {
-  return process.env.CI && process.env.CIRCLECI ? true : false;
+  return !!(process.env.CI && process.env.CIRCLECI);
 }
 
 export function injectSessionToken(profileName: string) {
@@ -83,16 +83,15 @@ export function npmInstall(cwd: string) {
   spawnSync('npm', ['install'], { cwd });
 }
 
-export async function installAmplifyCLI(version: string = 'latest') {
+export async function installAmplifyCLI(version = 'latest') {
   spawnSync('npm', ['install', '-g', `@aws-amplify/cli@${version}`], {
     cwd: process.cwd(),
     env: process.env,
     stdio: 'inherit',
   });
-  process.env.AMPLIFY_PATH =
-    process.platform === 'win32'
-      ? path.join(os.homedir(), '..', '..', 'Program` Files', 'nodejs', 'node_modules', '@aws-amplify', 'cli', 'bin', 'amplify')
-      : path.join(os.homedir(), '.npm-global', 'bin', 'amplify');
+  process.env.AMPLIFY_PATH = process.platform === 'win32'
+    ? path.join(os.homedir(), '..', '..', 'Program` Files', 'nodejs', 'node_modules', '@aws-amplify', 'cli', 'bin', 'amplify')
+    : path.join(os.homedir(), '.npm-global', 'bin', 'amplify');
 }
 
 export async function createNewProjectDir(
