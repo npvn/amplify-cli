@@ -27,7 +27,12 @@ export class OperationServer {
   ) {
     this._app = express();
     this._app.use(express.json({ limit: MAX_BODY_SIZE }));
-    this._app.use(cors());
+    this._app.use(cors({
+      "origin": "*",
+      "methods": "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
+      "preflightContinue": false,
+      "optionsSuccessStatus": 204
+    }));
     this._app.post('/graphql', this.handleRequest);
     this._app.get('/api-config', this.handleAPIInfoRequest);
     this._app.use('/', express.static(STATIC_ROOT));
