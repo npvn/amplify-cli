@@ -1,6 +1,6 @@
 {
   "name": "amplify-appsync-simulator-pathable",
-  "version": "2.3.12-allow-preflight-options",
+  "version": "2.3.12-debugging-5",
   "description": "An AppSync Simulator to test AppSync API.",
   "repository": {
     "type": "git",
