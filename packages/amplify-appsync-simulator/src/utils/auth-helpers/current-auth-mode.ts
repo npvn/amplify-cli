@@ -1,11 +1,13 @@
 import { AmplifyAppSyncAPIConfig, AmplifyAppSyncSimulatorAuthenticationType } from '../../type-definition';
 import { extractHeader, getAllowedAuthTypes, isValidOIDCToken, extractJwtToken } from './helpers';
 
+const DEFAULT_API_KEY = '0123456789';
+
 export function getAuthorizationMode(
   headers: Record<string, string | string[]>,
   appSyncConfig: AmplifyAppSyncAPIConfig,
 ): AmplifyAppSyncSimulatorAuthenticationType {
-  const apiKey = extractHeader(headers, 'x-api-key');
+  const apiKey = extractHeader(headers, 'x-api-key') || DEFAULT_API_KEY;
   const rawAuthHeader = extractHeader(headers, 'Authorization');
   const authorization = Array.isArray(rawAuthHeader) ? rawAuthHeader[0] : rawAuthHeader;
   const jwtToken = extractJwtToken(authorization);
