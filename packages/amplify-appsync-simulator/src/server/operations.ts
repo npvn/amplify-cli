@@ -27,13 +27,7 @@ export class OperationServer {
   ) {
     this._app = express();
     this._app.use(express.json({ limit: MAX_BODY_SIZE }));
-    this._app.use(cors({
-      "origin": "*",
-      "methods": "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
-      "preflightContinue": false,
-      "optionsSuccessStatus": 204,
-      "credentials": true
-    }));
+    this._app.use(cors());
     this._app.post('/graphql', this.handleRequest);
     this._app.get('/api-config', this.handleAPIInfoRequest);
     this._app.use('/', express.static(STATIC_ROOT));
@@ -62,11 +56,6 @@ export class OperationServer {
 
       const { variables = {}, query, operationName } = request.body;
       const doc = parse(query);
-
-      // Workaround for Pathable: Explicitly allow these headers to avoid problems
-      // on prestaging containers
-      const allowedHeaders = 'authorization,content-type,x-amz-user-agent,x-api-key';
-      response.set('Access-Control-Allow-Headers', allowedHeaders);
 
       if (!this.simulatorContext.schema) {
         return response.send({
