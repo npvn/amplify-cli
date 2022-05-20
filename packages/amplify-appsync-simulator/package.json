@@ -1,6 +1,6 @@
 {
   "name": "amplify-appsync-simulator-pathable",
-  "version": "2.3.12-debugging-5",
+  "version": "2.3.12-add-default-api-key",
   "description": "An AppSync Simulator to test AppSync API.",
   "repository": {
     "type": "git",
