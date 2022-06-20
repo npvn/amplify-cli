@@ -1,6 +1,6 @@
 {
   "name": "amplify-appsync-simulator-pathable",
-  "version": "2.3.12-add-default-api-key",
+  "version": "2.3.12-custom-websocket-timeout",
   "description": "An AppSync Simulator to test AppSync API.",
   "repository": {
     "type": "git",
